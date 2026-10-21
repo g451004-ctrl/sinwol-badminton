@@ -11,7 +11,19 @@ export const isDate = (s: unknown): s is string => typeof s === "string" && /^\d
 
 const clean = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
 
-export type Player = { sid: string; name: string };
+// 반 번호(1~2자리)만 쓰면 학년+반+번호 5자리 학번으로 바꾼다. 예: 2학년 7반 17번 → 20717
+export const fullSid = (sid: string, grade: number, cls: number) =>
+  /^\d{1,2}$/.test(sid) ? `${grade}${String(cls).padStart(2, "0")}${sid.padStart(2, "0")}` : sid;
+
+export const classKeyOf = (body: any) => {
+  const g = Number(body?.grade), c = Number(body?.cls);
+  return Number.isInteger(g) && g >= 1 && g <= 3 && Number.isInteger(c) && c >= 1 && c <= 20 ? `${g}-${c}` : null;
+};
+
+export const cleanPass = (v: unknown) => String(v ?? "").trim();
+export const validPass = (p: string) => /^\d{4}$/.test(p);
+
+export type Player ={ sid: string; name: string };
 export type Roster = {
   date: string;
   grade: number;
@@ -38,7 +50,10 @@ export function parseRoster(body: any): { ok: true; roster: Roster } | { ok: fal
     const any = players.some((p) => p.sid || p.name);
     const all = players.every((p) => p.sid && p.name);
     if (any && !all) return { ok: false, error: `${k} 팀의 학번과 이름을 모두 입력해 주세요.` };
-    for (const p of players) if (p.sid && !/^\d{4,6}$/.test(p.sid)) return { ok: false, error: `학번은 숫자로 입력해 주세요: ${p.sid}` };
+    for (const p of players) {
+      if (p.sid && !/^\d{1,6}$/.test(p.sid)) return { ok: false, error: `학번은 숫자로 입력해 주세요: ${p.sid}` };
+      p.sid = fullSid(p.sid, grade, cls);
+    }
     teams[k] = all ? players : [];
     if (all) filled++;
   }

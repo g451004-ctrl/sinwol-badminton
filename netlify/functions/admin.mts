@@ -26,7 +26,11 @@ export default async (req: Request) => {
     const { blobs } = await rosters.list({ prefix: `${date}/` });
     const list = await Promise.all(blobs.map((b) => rosters.get(b.key, { type: "json" })));
     const day = ((await settings.get(`day/${date}`, { type: "json" })) as any) ?? {};
+    const passes: Record<string, string> = {};
+    const { blobs: pb } = await settings.list({ prefix: "classpass/" });
+    await Promise.all(pb.map(async (b) => (passes[b.key.slice(10)] = (await settings.get(b.key)) ?? "")));
     return json({
+      passes,
       rosters: list.filter(Boolean),
       matchups: Array.isArray(day.matchups) ? day.matchups : [],
       locked: !!day.locked,
@@ -45,6 +49,13 @@ export default async (req: Request) => {
     if (typeof body.locked === "boolean") day.locked = body.locked;
     await settings.setJSON(`day/${date}`, day);
     return json({ ok: true, day });
+  }
+
+  if (action === "resetPass") {
+    const k = String(body.classKey ?? "");
+    if (!/^\d-\d{1,2}$/.test(k)) return json({ error: "잘못된 반" }, 400);
+    await settings.delete(`classpass/${k}`);
+    return json({ ok: true });
   }
 
   if (action === "delete") {

@@ -72,6 +72,8 @@
   @media (max-width: 640px) { .certs-grid { grid-template-columns: 1fr; } .cert-preview .certs-grid { min-width: 0; } }
 
   .pick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .passitem { display: inline-flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 4px 4px 4px 12px; background: var(--bg); }
+  .passitem .btn { padding: 4px 10px; font-size: .8rem; }
   .pick label { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; cursor: pointer; background: var(--bg); }
 
   #printArea { display: none; }
@@ -127,6 +129,9 @@
     <h2>제출한 반</h2>
     <p class="note" id="statusNote" style="margin:-6px 0 12px"></p>
     <div class="class-grid" id="classGrid"></div>
+    <h2 style="margin-top:22px">반 비밀번호</h2>
+    <p class="note" style="margin:-6px 0 10px">각 반이 처음 제출할 때 정한 4자리 번호입니다. 잊어버린 반은 알려 주거나, 초기화하면 다음 제출 때 새로 정합니다.</p>
+    <div class="pick" id="passList"></div>
   </section>
 
   <!-- 대진표 -->
@@ -263,6 +268,7 @@ async function load() {
 function renderAll() {
   renderLock();
   renderStatus();
+  renderPasses();
   renderMatchRows();
   renderBracket();
   renderCertClasses();
@@ -297,9 +303,21 @@ function renderStatus() {
     <article class="class-card">
       <header><h3>${className(classKey(r))}</h3><span class="note tabular">${hhmm(r.submittedAt)} · ${esc(r.submitter)}</span></header>
       <table class="mini tabular">${TEAM_KEYS.map((k) => `<tr><td>${teamLabel(k)}</td><td>${r.teams[k]?.length ? r.teams[k].map((p) => esc(p.sid + " " + p.name)).join("<br>") : '<span class="note">기권</span>'}</td></tr>`).join("")}</table>
-      <div class="row"><button class="btn danger" data-del="${classKey(r)}">삭제</button></div>
+      <div class="row"><button class="btn danger" data-del="${classKey(r)}">명단 삭제</button></div>
     </article>`).join("");
 }
+function renderPasses() {
+  const ks = Object.keys(state.passes || {}).sort((a, b) => a.localeCompare(b, "ko", { numeric: true }));
+  $("passList").innerHTML = ks.length
+    ? ks.map((k) => `<span class="passitem"><b>${className(k)}</b> <span class="tabular">${esc(state.passes[k])}</span> <button class="btn" data-reset="${k}">초기화</button></span>`).join("")
+    : '<span class="note">아직 비밀번호를 정한 반이 없습니다.</span>';
+}
+$("passList").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-reset]");
+  if (!b) return;
+  if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "한 번 더 누르면 초기화"; return; }
+  try { await api("resetPass", { classKey: b.dataset.reset }); await load(); } catch (err) { alertBox(err.message); }
+});
 $("classGrid").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-del]");
   if (!b) return;
