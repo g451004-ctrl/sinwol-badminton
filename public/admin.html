@@ -116,6 +116,7 @@
     <div class="spacer"></div>
     <div class="field"><span>제출 상태</span>
       <button class="btn" id="lockBtn">…</button></div>
+    <button class="btn" id="logoutBtn">로그아웃</button>
   </section>
 
   <nav class="tabs" role="tablist">
@@ -274,6 +275,17 @@ function renderAll() {
   renderCertClasses();
   renderCerts();
 }
+
+/* ── 로그아웃 ── */
+$("logoutBtn").addEventListener("click", () => {
+  PASS = "";
+  try { sessionStorage.removeItem("bt-pass"); } catch {}
+  state = { rosters: [], matchups: [], locked: false };
+  $("pass").value = "";
+  $("appView").hidden = true;
+  $("loginView").hidden = false;
+  window.scrollTo(0, 0);
+});
 
 /* ── 마감 ── */
 function renderLock() {
