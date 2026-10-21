@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>배드민턴 출전 명단 제출</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@600;800&family=Noto+Sans+KR:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="app.css">
+<style>
+  .submit-bar { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--bg) 30%); padding: 18px 0 calc(8px + env(safe-area-inset-bottom)); }
+  .done { text-align: center; padding: 28px 18px; }
+  .done h2 { font-size: 1.4rem; margin-bottom: 6px; color: var(--court); }
+  .summary { text-align: left; margin-top: 18px; display: grid; gap: 4px; font-size: .92rem; }
+  .summary div { display: grid; grid-template-columns: 4.5rem 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .summary b { color: var(--muted); font-weight: 600; }
+  .warnlist { margin: 8px 0 0; padding-left: 1.2em; font-size: .88rem; }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="inner">
+  <h1>반별 배드민턴 토너먼트</h1>
+  <p>출전 명단 제출 · 여복 3팀 · 혼복 3팀 · 남복 3팀</p>
+</div></header>
+
+<main class="wrap" id="formView">
+  <section class="card">
+    <h2>우리 반 정보</h2>
+    <div class="row">
+      <label class="field" style="flex:1 1 150px"><span>경기 날짜</span><input type="date" id="date"></label>
+      <label class="field" style="flex:1 1 90px"><span>학년</span>
+        <select id="grade"><option value="">선택</option><option>1</option><option>2</option><option>3</option></select></label>
+      <label class="field" style="flex:1 1 90px"><span>반</span><select id="cls"></select></label>
+      <label class="field" style="flex:2 1 160px"><span>제출자 이름</span><input type="text" id="submitter" placeholder="예: 반장 홍길동" maxlength="20"></label>
+    </div>
+    <p class="note" style="margin:10px 0 0">같은 반이 다시 제출하면 마지막에 낸 명단으로 바뀝니다. 제출한 명단은 선생님만 볼 수 있습니다.</p>
+  </section>
+
+  <div id="events"></div>
+
+  <div id="msg" hidden></div>
+  <div class="submit-bar"><button class="btn primary big" id="submitBtn">명단 제출하기</button></div>
+</main>
+
+<main class="wrap" id="doneView" hidden>
+  <section class="card done">
+    <h2>제출 완료</h2>
+    <p id="doneText"></p>
+    <div class="summary tabular" id="summary"></div>
+    <div class="row" style="justify-content:center;margin-top:20px">
+      <button class="btn" id="editBtn">명단 고쳐서 다시 제출</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const EVENTS = [
+  { code: "w", name: "여자복식", tags: ["여학생", "여학생"] },
+  { code: "x", name: "혼합복식", tags: ["남학생", "여학생"] },
+  { code: "m", name: "남자복식", tags: ["남학생", "남학생"] },
+];
+const $ = (id) => document.getElementById(id);
+
+function kstToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+}
+$("date").value = kstToday();
+$("cls").innerHTML = '<option value="">선택</option>' + Array.from({ length: 15 }, (_, i) => `<option>${i + 1}</option>`).join("");
+
+$("events").innerHTML = EVENTS.map((ev) => `
+  <section class="card event ev-${ev.code}">
+    <h2>${ev.name} <small>팀마다 2명</small></h2>
+    <div class="teams">
+      ${[1, 2, 3].map((n) => `
+        <div class="team">
+          <h3>${ev.name.replace("자복식", "복").replace("합복식", "복")} ${n}팀</h3>
+          ${[0, 1].map((p) => `
+            <div class="player">
+              <span class="tag">${ev.tags[p]} ${p + 1}</span>
+              <input type="text" inputmode="numeric" maxlength="6" placeholder="학번" id="${ev.code}${n}-${p}-sid" aria-label="${ev.name} ${n}팀 선수${p + 1} 학번">
+              <input type="text" maxlength="20" placeholder="이름" id="${ev.code}${n}-${p}-name" aria-label="${ev.name} ${n}팀 선수${p + 1} 이름">
+            </div>`).join("")}
+        </div>`).join("")}
+    </div>
+  </section>`).join("");
+
+const TEAM_KEYS = ["w1", "w2", "w3", "x1", "x2", "x3", "m1", "m2", "m3"];
+const LABEL = { w: "여복", x: "혼복", m: "남복" };
+
+function collect() {
+  const teams = {};
+  for (const k of TEAM_KEYS) {
+    teams[k] = [0, 1].map((p) => ({
+      sid: $(`${k}-${p}-sid`).value.trim(),
+      name: $(`${k}-${p}-name`).value.trim(),
+    }));
+  }
+  return { date: $("date").value, grade: $("grade").value, cls: $("cls").value, submitter: $("submitter").value.trim(), teams };
+}
+
+function fill(d) {
+  if (!d) return;
+  if (d.grade) $("grade").value = d.grade;
+  if (d.cls) $("cls").value = d.cls;
+  if (d.submitter) $("submitter").value = d.submitter;
+  for (const k of TEAM_KEYS) (d.teams?.[k] || []).forEach((pl, p) => {
+    $(`${k}-${p}-sid`).value = pl.sid || "";
+    $(`${k}-${p}-name`).value = pl.name || "";
+  });
+}
+
+// 이 기기에만 임시 저장 (다른 사람에게는 보이지 않음)
+const DRAFT = "bt-draft";
+try { fill(JSON.parse(localStorage.getItem(DRAFT) || "null")); } catch {}
+document.addEventListener("input", () => { try { localStorage.setItem(DRAFT, JSON.stringify(collect())); } catch {} });
+
+let pendingConfirm = false;
+function check(d) {
+  const errors = [], warns = [];
+  document.querySelectorAll("input.bad").forEach((el) => el.classList.remove("bad"));
+  if (!d.date) errors.push("경기 날짜를 선택해 주세요.");
+  if (!d.grade || !d.cls) errors.push("학년과 반을 선택해 주세요.");
+  if (!d.submitter) errors.push("제출자 이름을 입력해 주세요.");
+  const prefix = d.grade && d.cls ? d.grade + String(d.cls).padStart(2, "0") : null;
+  const seen = {};
+  let filled = 0;
+  for (const k of TEAM_KEYS) {
+    const ps = d.teams[k];
+    const any = ps.some((p) => p.sid || p.name), all = ps.every((p) => p.sid && p.name);
+    const label = `${LABEL[k[0]]} ${k[1]}팀`;
+    if (any && !all) {
+      errors.push(`${label}: 두 선수의 학번과 이름을 모두 써 주세요.`);
+      ps.forEach((p, i) => { if (!p.sid) $(`${k}-${i}-sid`).classList.add("bad"); if (!p.name) $(`${k}-${i}-name`).classList.add("bad"); });
+    }
+    if (!any) warns.push(`${label}이 비어 있습니다. 비워 두면 기권 처리됩니다.`);
+    if (all) filled++;
+    ps.forEach((p, i) => {
+      if (!p.sid) return;
+      if (!/^\d{4,6}$/.test(p.sid)) { errors.push(`${label}: 학번은 숫자만 써 주세요 (${p.sid}).`); $(`${k}-${i}-sid`).classList.add("bad"); }
+      else if (prefix && p.sid.length === 5 && !p.sid.startsWith(prefix)) { warns.push(`${label}: ${p.sid} ${p.name} 학번이 ${d.grade}학년 ${d.cls}반과 다릅니다.`); $(`${k}-${i}-sid`).classList.add("bad"); }
+      const key = p.sid + k[0];
+      if (seen[key]) warns.push(`${p.name}(${p.sid}) 학생이 ${LABEL[k[0]]}에 두 번 들어가 있습니다.`);
+      seen[key] = true;
+    });
+  }
+  if (filled === 0) errors.push("최소 한 팀은 입력해 주세요.");
+  return { errors, warns };
+}
+
+function showMsg(html, ok) {
+  $("msg").hidden = false;
+  $("msg").className = "alert" + (ok ? " ok" : "");
+  $("msg").innerHTML = html;
+  $("msg").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+document.addEventListener("input", () => { pendingConfirm = false; $("submitBtn").textContent = "명단 제출하기"; });
+
+$("submitBtn").addEventListener("click", async () => {
+  const d = collect();
+  const { errors, warns } = check(d);
+  if (errors.length) { showMsg("<b>고칠 곳이 있어요</b><ul class='warnlist'>" + errors.map((e) => `<li>${esc(e)}</li>`).join("") + "</ul>"); return; }
+  if (warns.length && !pendingConfirm) {
+    pendingConfirm = true;
+    showMsg("<b>확인해 주세요</b><ul class='warnlist'>" + warns.map((e) => `<li>${esc(e)}</li>`).join("") + "</ul><div style='margin-top:6px'>이대로 내려면 아래 버튼을 한 번 더 누르세요.</div>");
+    $("submitBtn").textContent = "이대로 제출하기";
+    return;
+  }
+  $("submitBtn").disabled = true;
+  $("submitBtn").textContent = "제출하는 중…";
+  try {
+    const res = await fetch("/api/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || "제출하지 못했습니다. 다시 시도해 주세요.");
+    showDone(d, out.replaced);
+  } catch (e) {
+    showMsg(esc(e.message));
+  } finally {
+    $("submitBtn").disabled = false;
+    $("submitBtn").textContent = "명단 제출하기";
+    pendingConfirm = false;
+  }
+});
+
+function showDone(d, replaced) {
+  $("formView").hidden = true;
+  $("doneView").hidden = false;
+  $("doneText").textContent = `${d.date} · ${d.grade}학년 ${d.cls}반 명단이 ${replaced ? "새로 바뀌었습니다" : "제출되었습니다"}.`;
+  $("summary").innerHTML = TEAM_KEYS.map((k) => {
+    const ps = d.teams[k].filter((p) => p.sid && p.name);
+    return `<div><b>${LABEL[k[0]]} ${k[1]}팀</b><span>${ps.length ? ps.map((p) => esc(p.sid + " " + p.name)).join(", ") : "기권"}</span></div>`;
+  }).join("");
+  window.scrollTo(0, 0);
+}
+$("editBtn").addEventListener("click", () => { $("doneView").hidden = true; $("formView").hidden = false; $("msg").hidden = true; });
+</script>
+</body>
+</html>

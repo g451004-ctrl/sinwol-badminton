@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>토너먼트 관리 · 교사용</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@600;800&family=Noto+Sans+KR:wght@300;400;500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="app.css">
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+  .login { max-width: 360px; margin: 60px auto; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .toolbar .spacer { flex: 1; }
+  .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); overflow-x: auto; }
+  .tabs button { border: 0; background: none; padding: 10px 16px; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+  .tabs button.on { color: var(--court); border-bottom-color: var(--court); }
+  .chip { display: inline-block; font-size: .75rem; padding: 2px 8px; border-radius: 99px; background: var(--court-soft); color: var(--court); font-weight: 600; }
+  .chip.off { background: var(--warn-soft); color: var(--warn); }
+
+  .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .class-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--bg); display: grid; gap: 8px; }
+  .class-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .class-card h3 { font-size: 1.05rem; }
+  .mini { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  .mini td { padding: 3px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+  .mini td:first-child { color: var(--muted); white-space: nowrap; width: 3.6rem; }
+
+  .mrow { display: grid; grid-template-columns: 2.2rem minmax(0,1fr) 2rem minmax(0,1fr) minmax(0,.8fr) auto; gap: 8px; align-items: center; }
+  .mrow .vs { text-align: center; font-weight: 800; color: var(--muted); }
+  .mrow .no { font-weight: 800; color: var(--court); }
+  @media (max-width: 640px) { .mrow { grid-template-columns: 1.6rem 1fr 1.6rem 1fr; } .mrow .court, .mrow .del { grid-column: 2 / -1; } }
+
+  .sheet-scroll { overflow-x: auto; }
+
+  /* ── 대진표 (화면 미리보기와 인쇄 공용) ── */
+  .bracket-page { background: #fff; color: #111; padding: 18px; border: 1px solid var(--line); font-family: "Noto Sans KR", sans-serif; min-width: 640px; }
+  .bracket-page + .bracket-page { margin-top: 16px; }
+  .bk-title { text-align: center; font-size: 20px; font-weight: 700; margin: 0 0 2px; font-family: "Gothic A1", "Noto Sans KR", sans-serif; }
+  .bk-sub { text-align: center; font-size: 13px; color: #444; margin-bottom: 12px; }
+  .bk-vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; margin: 6px 0 14px; }
+  .bk-vs div { border: 2px solid #111; padding: 8px; text-align: center; font-size: 20px; font-weight: 800; }
+  .bk-vs span { font-weight: 800; font-size: 18px; }
+  .bk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .bk-table th, .bk-table td { border: 1px solid #111; padding: 6px 6px; text-align: center; }
+  .bk-table th { background: #e9ece9; font-weight: 700; }
+  .bk-table td.pl { text-align: left; line-height: 1.5; font-variant-numeric: tabular-nums; }
+  .bk-table td.ev { font-weight: 700; white-space: nowrap; }
+  .bk-table td.score { width: 52px; height: 46px; }
+  .bk-table td.colon { width: 14px; border-left: 0; border-right: 0; font-weight: 700; }
+  .bk-table td.empty { color: #999; }
+  .bk-foot { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; }
+  .bk-foot div { border: 1px solid #111; padding: 10px; }
+
+  /* ── 우선급식증: 기존 생성기 양식 그대로 ── */
+  .certs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+  .cert { border: 1.5px solid #333; padding: 1.5rem 1.75rem; font-family: 'Noto Serif KR', serif; background: white; color: #111; position: relative; page-break-inside: avoid; break-inside: avoid; }
+  .cert-title { text-align: center; font-size: 1.4rem; font-weight: 700; letter-spacing: 0.3em; margin-bottom: 1.4rem; padding-bottom: 0.75rem; border-bottom: 1px solid #333; }
+  .cert-row { display: flex; margin-bottom: 0.65rem; font-size: 1rem; line-height: 1.8; }
+  .cert-label { min-width: 2.2rem; color: #333; font-weight: 600; white-space: nowrap; }
+  .cert-sep { margin: 0 0.3rem; }
+  .cert-value { color: #111; }
+  .cert-body { margin-top: 1.25rem; font-size: 0.88rem; line-height: 2; text-align: justify; border-top: 1px solid #ccc; padding-top: 1.1rem; }
+  .cert-footer { margin-top: 1.2rem; text-align: right; font-size: 0.88rem; }
+  .cert-logo-row { text-align: center; margin-bottom: 0.4rem; }
+  .cert-logo { height: 40px; object-fit: contain; opacity: 0.85; }
+  .cert-footer .teacher-line { display: inline-flex; align-items: center; gap: 0.5rem; }
+  .cert-seal { display: inline-block; width: 42px; height: 42px; border: 1.5px solid #666; border-radius: 50%; margin-left: 4px; vertical-align: middle; font-size: 10px; line-height: 42px; text-align: center; color: #999; }
+  .cert-preview { background: #fff; padding: 16px; border: 1px solid var(--line); overflow-x: auto; }
+  .cert-preview .certs-grid { min-width: 620px; }
+  @media (max-width: 640px) { .certs-grid { grid-template-columns: 1fr; } .cert-preview .certs-grid { min-width: 0; } }
+
+  .pick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pick label { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; cursor: pointer; background: var(--bg); }
+
+  #printArea { display: none; }
+  @media print {
+    @page { size: A4 portrait; margin: 10mm; }
+    body { background: #fff; }
+    body > *:not(#printArea) { display: none !important; }
+    #printArea { display: block; }
+    .bracket-page { border: 0; padding: 0; min-width: 0; page-break-after: always; break-after: page; }
+    .bracket-page:last-child { page-break-after: auto; break-after: auto; }
+    .bracket-page + .bracket-page { margin-top: 0; }
+    .certs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5cm; padding: 1cm; }
+    .cert { border: 1.5px solid #333 !important; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="inner">
+  <h1>반별 배드민턴 토너먼트 관리</h1>
+  <p>교사용 · 제출 현황, 대진표, 우선급식증</p>
+</div></header>
+
+<!-- 로그인 -->
+<main class="wrap" id="loginView">
+  <form class="card login" id="loginForm">
+    <h2>관리자 로그인</h2>
+    <label class="field"><span>비밀번호</span><input type="password" id="pass" autocomplete="current-password"></label>
+    <div id="loginMsg" class="alert" hidden style="margin-top:10px"></div>
+    <button class="btn primary big" style="margin-top:14px">들어가기</button>
+  </form>
+</main>
+
+<!-- 관리 화면 -->
+<main class="wrap" id="appView" hidden>
+  <section class="card toolbar">
+    <label class="field"><span>경기 날짜</span><input type="date" id="date"></label>
+    <label class="field"><span>제출 기록이 있는 날</span><select id="dateList"><option value="">—</option></select></label>
+    <button class="btn" id="reloadBtn">새로고침</button>
+    <div class="spacer"></div>
+    <div class="field"><span>제출 상태</span>
+      <button class="btn" id="lockBtn">…</button></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button data-tab="status" class="on">제출 현황 <span class="chip" id="cnt">0</span></button>
+    <button data-tab="bracket">대진표</button>
+    <button data-tab="certs">우선급식증</button>
+  </nav>
+
+  <!-- 제출 현황 -->
+  <section id="tab-status" class="card">
+    <h2>제출한 반</h2>
+    <p class="note" id="statusNote" style="margin:-6px 0 12px"></p>
+    <div class="class-grid" id="classGrid"></div>
+  </section>
+
+  <!-- 대진표 -->
+  <section id="tab-bracket" hidden>
+    <div class="card">
+      <h2>오늘의 대진</h2>
+      <p class="note" style="margin:-6px 0 12px">맞붙을 두 반을 고르고 저장하세요. 같은 번호 팀끼리 경기합니다 (여복1팀 vs 여복1팀).</p>
+      <div id="matchRows" style="display:grid;gap:8px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="addMatch">+ 대진 추가</button>
+        <button class="btn" id="autoMatch">제출 순서대로 짝짓기</button>
+        <div style="flex:1"></div>
+        <span class="note" id="saveState"></span>
+        <button class="btn primary" id="saveMatch">대진 저장</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <h2 style="margin:0">대진표 미리보기</h2>
+        <div class="row">
+          <button class="btn" id="xlsxBtn">엑셀 다운로드</button>
+          <button class="btn primary" id="printBracket">대진표 인쇄</button>
+        </div>
+      </div>
+      <div class="sheet-scroll" id="bracketPreview"></div>
+    </div>
+  </section>
+
+  <!-- 우선급식증 -->
+  <section id="tab-certs" hidden>
+    <div class="card">
+      <h2>우선급식증 내용</h2>
+      <div class="row">
+        <label class="field" style="flex:1 1 160px"><span>기간</span><input type="text" id="cDate"></label>
+        <label class="field" style="flex:2 1 240px"><span>사유</span><input type="text" id="cReason"></label>
+        <label class="field" style="flex:1 1 120px"><span>담당교사</span><input type="text" id="cTeacher"></label>
+      </div>
+      <div class="field" style="margin-top:14px"><span>출력할 반</span><div class="pick" id="cClasses"></div></div>
+      <div class="row" style="margin-top:14px">
+        <label class="field" style="flex:0 1 110px"><span>추가 학번</span><input type="text" id="xSid" inputmode="numeric"></label>
+        <label class="field" style="flex:0 1 140px"><span>추가 이름</span><input type="text" id="xName"></label>
+        <button class="btn" id="xAdd">추가</button>
+        <span class="note">심판·도우미 등 명단에 없는 학생</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <h2 style="margin:0">미리보기 <span class="chip" id="certCnt">0장</span></h2>
+        <button class="btn primary" id="printCerts">우선급식증 인쇄</button>
+      </div>
+      <div class="cert-preview" id="certPreview"></div>
+    </div>
+  </section>
+</main>
+
+<div id="printArea"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const TEAM_KEYS = ["w1", "w2", "w3", "x1", "x2", "x3", "m1", "m2", "m3"];
+const LABEL = { w: "여복", x: "혼복", m: "남복" };
+const teamLabel = (k) => `${LABEL[k[0]]} ${k[1]}팀`;
+const classKey = (r) => `${r.grade}-${r.cls}`;
+const className = (k) => { const [g, c] = String(k).split("-"); return `${g}학년 ${c}반`; };
+const store = { get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+let PASS = "";
+let state = { rosters: [], matchups: [], locked: false };
+let extras = [];
+
+function kstToday() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()); }
+function koDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const w = "일월화수목금토"[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${y}.${m}.${d}.(${w})`;
+}
+function hhmm(iso) { return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)); }
+
+async function api(action, extra = {}) {
+  const res = await fetch("/api/admin", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pass: PASS, action, date: $("date").value, ...extra }) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(out.error || "서버 오류"), { status: res.status });
+  return out;
+}
+
+/* ── 로그인 ── */
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  PASS = $("pass").value;
+  $("loginMsg").hidden = true;
+  try {
+    await api("dates");
+    try { sessionStorage.setItem("bt-pass", PASS); } catch {}
+    enter();
+  } catch (err) {
+    $("loginMsg").hidden = false;
+    $("loginMsg").textContent = err.message;
+  }
+});
+try { const p = sessionStorage.getItem("bt-pass"); if (p) { PASS = p; api("dates").then(enter).catch(() => {}); } } catch {}
+
+async function enter() {
+  $("loginView").hidden = true;
+  $("appView").hidden = false;
+  if (!$("date").value) $("date").value = kstToday();
+  loadDates();
+  await load();
+}
+async function loadDates() {
+  try {
+    const { dates } = await api("dates");
+    $("dateList").innerHTML = '<option value="">—</option>' + dates.map((d) => `<option value="${d}">${koDate(d)}</option>`).join("");
+  } catch {}
+}
+$("dateList").addEventListener("change", () => { if ($("dateList").value) { $("date").value = $("dateList").value; load(); } });
+$("date").addEventListener("change", load);
+$("reloadBtn").addEventListener("click", () => { loadDates(); load(); });
+
+async function load() {
+  $("classGrid").innerHTML = '<p class="note">불러오는 중…</p>';
+  try {
+    state = await api("load");
+  } catch (e) {
+    $("classGrid").innerHTML = `<div class="alert">${esc(e.message)}</div>`;
+    return;
+  }
+  state.rosters.sort((a, b) => a.grade - b.grade || a.cls - b.cls);
+  extras = [];
+  $("cDate").value = koDate($("date").value);
+  renderAll();
+}
+
+function renderAll() {
+  renderLock();
+  renderStatus();
+  renderMatchRows();
+  renderBracket();
+  renderCertClasses();
+  renderCerts();
+}
+
+/* ── 마감 ── */
+function renderLock() {
+  $("lockBtn").textContent = state.locked ? "마감됨 · 다시 열기" : "제출 받는 중 · 마감하기";
+  $("lockBtn").className = "btn" + (state.locked ? " danger" : "");
+}
+$("lockBtn").addEventListener("click", async () => {
+  try { await api("saveDay", { locked: !state.locked }); state.locked = !state.locked; renderLock(); }
+  catch (e) { alertBox(e.message); }
+});
+
+/* ── 탭 ── */
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  ["status", "bracket", "certs"].forEach((t) => ($(`tab-${t}`).hidden = t !== b.dataset.tab));
+}));
+
+/* ── 제출 현황 ── */
+function renderStatus() {
+  $("cnt").textContent = state.rosters.length;
+  const needed = new Set(state.matchups.flatMap((m) => [m.a, m.b]).filter(Boolean));
+  const have = new Set(state.rosters.map(classKey));
+  const missing = [...needed].filter((k) => !have.has(k));
+  $("statusNote").textContent = `${koDate($("date").value)} · ${state.rosters.length}개 반 제출` + (missing.length ? ` · 대진에 있는데 아직 안 낸 반: ${missing.map(className).join(", ")}` : "");
+  if (!state.rosters.length) { $("classGrid").innerHTML = '<p class="note">아직 제출한 반이 없습니다. 학생들이 제출하면 여기에 나타납니다. 새로고침을 눌러 확인하세요.</p>'; return; }
+  $("classGrid").innerHTML = state.rosters.map((r) => `
+    <article class="class-card">
+      <header><h3>${className(classKey(r))}</h3><span class="note tabular">${hhmm(r.submittedAt)} · ${esc(r.submitter)}</span></header>
+      <table class="mini tabular">${TEAM_KEYS.map((k) => `<tr><td>${teamLabel(k)}</td><td>${r.teams[k]?.length ? r.teams[k].map((p) => esc(p.sid + " " + p.name)).join("<br>") : '<span class="note">기권</span>'}</td></tr>`).join("")}</table>
+      <div class="row"><button class="btn danger" data-del="${classKey(r)}">삭제</button></div>
+    </article>`).join("");
+}
+$("classGrid").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-del]");
+  if (!b) return;
+  if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "정말 삭제할까요? 한 번 더 누르세요"; return; }
+  try { await api("delete", { classKey: b.dataset.del }); await load(); } catch (err) { alertBox(err.message); }
+});
+function alertBox(msg) { const d = document.createElement("div"); d.className = "alert"; d.textContent = msg; $("appView").prepend(d); setTimeout(() => d.remove(), 5000); }
+
+/* ── 대진 편집 ── */
+function classOptions(sel) {
+  const submitted = state.rosters.map(classKey);
+  const all = [];
+  for (let g = 1; g <= 3; g++) for (let c = 1; c <= 15; c++) all.push(`${g}-${c}`);
+  const rest = all.filter((k) => !submitted.includes(k));
+  const opt = (k, tag) => `<option value="${k}" ${k === sel ? "selected" : ""}>${className(k)}${tag}</option>`;
+  return '<option value="">반 선택</option>' + (submitted.length ? `<optgroup label="제출한 반">${submitted.map((k) => opt(k, "")).join("")}</optgroup>` : "") + `<optgroup label="미제출">${rest.map((k) => opt(k, " (미제출)")).join("")}</optgroup>`;
+}
+function renderMatchRows() {
+  if (!state.matchups.length) { $("matchRows").innerHTML = '<p class="note">아직 대진이 없습니다. “대진 추가”를 누르거나 제출한 반끼리 자동으로 짝지어 보세요.</p>'; return; }
+  $("matchRows").innerHTML = state.matchups.map((m, i) => `
+    <div class="mrow" data-i="${i}">
+      <span class="no">${i + 1}</span>
+      <select data-f="a" aria-label="${i + 1}경기 첫째 반">${classOptions(m.a)}</select>
+      <span class="vs">vs</span>
+      <select data-f="b" aria-label="${i + 1}경기 둘째 반">${classOptions(m.b)}</select>
+      <input type="text" class="court" data-f="court" placeholder="코트·시간 (선택)" value="${esc(m.court)}">
+      <button class="btn danger del" data-rm="${i}">삭제</button>
+    </div>`).join("");
+}
+function dirty() { $("saveState").textContent = "저장 안 됨"; renderBracket(); renderStatus(); }
+$("matchRows").addEventListener("change", (e) => { const row = e.target.closest(".mrow"); if (!row) return; state.matchups[row.dataset.i][e.target.dataset.f] = e.target.value; dirty(); });
+$("matchRows").addEventListener("input", (e) => { if (e.target.dataset.f === "court") { state.matchups[e.target.closest(".mrow").dataset.i].court = e.target.value; dirty(); } });
+$("matchRows").addEventListener("click", (e) => { const b = e.target.closest("[data-rm]"); if (!b) return; state.matchups.splice(+b.dataset.rm, 1); renderMatchRows(); dirty(); });
+$("addMatch").addEventListener("click", () => { state.matchups.push({ a: "", b: "", court: "" }); renderMatchRows(); dirty(); });
+$("autoMatch").addEventListener("click", () => {
+  const ks = state.rosters.map(classKey);
+  const used = new Set(state.matchups.flatMap((m) => [m.a, m.b]));
+  const free = ks.filter((k) => !used.has(k));
+  for (let i = 0; i + 1 < free.length; i += 2) state.matchups.push({ a: free[i], b: free[i + 1], court: "" });
+  renderMatchRows(); dirty();
+});
+$("saveMatch").addEventListener("click", async () => {
+  try { await api("saveDay", { matchups: state.matchups }); $("saveState").textContent = "저장됨"; }
+  catch (e) { $("saveState").textContent = e.message; }
+});
+
+/* ── 대진표 ── */
+function rosterOf(k) { return state.rosters.find((r) => classKey(r) === k); }
+function playersText(r, k, sep) {
+  if (!r) return { text: "미제출", empty: true };
+  const ps = r.teams[k] || [];
+  return ps.length ? { text: ps.map((p) => `${p.sid} ${p.name}`).join(sep), empty: false } : { text: "기권", empty: true };
+}
+function bracketHTML() {
+  const ms = state.matchups.filter((m) => m.a && m.b);
+  if (!ms.length) return '<p class="note">대진을 추가하면 여기에 대진표가 나타납니다.</p>';
+  const year = $("date").value.slice(0, 4);
+  return ms.map((m, i) => {
+    const A = rosterOf(m.a), B = rosterOf(m.b);
+    return `<div class="bracket-page">
+      <h3 class="bk-title">${year} 반별 배드민턴 토너먼트 대진표</h3>
+      <div class="bk-sub">${koDate($("date").value)} · 제${i + 1}경기${m.court ? " · " + esc(m.court) : ""}</div>
+      <div class="bk-vs"><div>${className(m.a)}</div><span>VS</span><div>${className(m.b)}</div></div>
+      <table class="bk-table">
+        <thead><tr><th style="width:34px">번호</th><th style="width:72px">종목</th><th>${className(m.a)} 선수</th><th colspan="3">점수</th><th>${className(m.b)} 선수</th><th style="width:70px">승리</th></tr></thead>
+        <tbody>${TEAM_KEYS.map((k, j) => {
+          const a = playersText(A, k, "<br>"), b = playersText(B, k, "<br>");
+          return `<tr><td>${j + 1}</td><td class="ev">${teamLabel(k)}</td><td class="pl ${a.empty ? "empty" : ""}">${esc(a.text).replace(/&lt;br&gt;/g, "<br>")}</td><td class="score"></td><td class="colon">:</td><td class="score"></td><td class="pl ${b.empty ? "empty" : ""}">${esc(b.text).replace(/&lt;br&gt;/g, "<br>")}</td><td></td></tr>`;
+        }).join("")}</tbody>
+      </table>
+      <div class="bk-foot">
+        <div>종합 &nbsp; ${className(m.a)} ( &nbsp;&nbsp; )승 : ( &nbsp;&nbsp; )승 ${className(m.b)}</div>
+        <div>최종 승리 반 : ______________ &nbsp; 확인 ________</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+function renderBracket() { $("bracketPreview").innerHTML = bracketHTML(); }
+
+function printWith(html) {
+  $("printArea").innerHTML = html;
+  const imgs = [...$("printArea").querySelectorAll("img")];
+  Promise.all(imgs.map((im) => im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; }))).then(() => window.print());
+}
+window.addEventListener("afterprint", () => { $("printArea").innerHTML = ""; });
+$("printBracket").addEventListener("click", () => {
+  if (!state.matchups.some((m) => m.a && m.b)) return alertBox("먼저 대진을 추가하세요.");
+  printWith(bracketHTML());
+});
+
+/* ── 엑셀 ── */
+$("xlsxBtn").addEventListener("click", async () => {
+  const ms = state.matchups.filter((m) => m.a && m.b);
+  if (!ms.length && !state.rosters.length) return alertBox("내보낼 대진이나 명단이 없습니다.");
+  const wb = new ExcelJS.Workbook();
+  const thin = { style: "thin", color: { argb: "FF000000" } };
+  const box = { top: thin, left: thin, bottom: thin, right: thin };
+  const date = $("date").value, year = date.slice(0, 4);
+
+  ms.forEach((m, i) => {
+    const A = rosterOf(m.a), B = rosterOf(m.b);
+    const name = `${i + 1}경기 ${m.a} vs ${m.b}`.slice(0, 31);
+    const ws = wb.addWorksheet(name, {
+      pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } },
+    });
+    ws.columns = [{ width: 6 }, { width: 11 }, { width: 24 }, { width: 8 }, { width: 3 }, { width: 8 }, { width: 24 }, { width: 11 }];
+    const font = (sz, bold) => ({ name: "맑은 고딕", size: sz, bold });
+    ws.mergeCells("A1:H1"); ws.getCell("A1").value = `${year} 반별 배드민턴 토너먼트 대진표`;
+    ws.getCell("A1").font = font(18, true); ws.getCell("A1").alignment = { horizontal: "center", vertical: "middle" }; ws.getRow(1).height = 34;
+    ws.mergeCells("A2:H2"); ws.getCell("A2").value = `${koDate(date)} · 제${i + 1}경기${m.court ? " · " + m.court : ""}`;
+    ws.getCell("A2").font = font(11); ws.getCell("A2").alignment = { horizontal: "center" };
+    ws.mergeCells("A4:C4"); ws.getCell("A4").value = className(m.a);
+    ws.mergeCells("D4:F4"); ws.getCell("D4").value = "VS";
+    ws.mergeCells("G4:H4"); ws.getCell("G4").value = className(m.b);
+    ["A4", "D4", "G4"].forEach((c) => { ws.getCell(c).font = font(16, true); ws.getCell(c).alignment = { horizontal: "center", vertical: "middle" }; });
+    ["A4", "G4"].forEach((c) => (ws.getCell(c).border = { top: { style: "medium" }, left: { style: "medium" }, bottom: { style: "medium" }, right: { style: "medium" } }));
+    ws.getRow(4).height = 32;
+
+    const head = ws.getRow(6);
+    head.values = ["번호", "종목", `${className(m.a)} 선수`, "점수", "", "", `${className(m.b)} 선수`, "승리"];
+    ws.mergeCells("D6:F6");
+    head.height = 22;
+    head.eachCell({ includeEmpty: true }, (c) => { c.font = font(11, true); c.alignment = { horizontal: "center", vertical: "middle" }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE9ECE9" } }; c.border = box; });
+
+    TEAM_KEYS.forEach((k, j) => {
+      const r = ws.getRow(7 + j);
+      const a = playersText(A, k, "\n"), b = playersText(B, k, "\n");
+      r.values = [j + 1, teamLabel(k), a.text, "", ":", "", b.text, ""];
+      r.height = 40;
+      r.eachCell({ includeEmpty: true }, (c, col) => {
+        c.font = font(11, col === 2);
+        c.alignment = { horizontal: col === 3 || col === 7 ? "left" : "center", vertical: "middle", wrapText: true, indent: col === 3 || col === 7 ? 1 : 0 };
+        c.border = col === 5 ? { top: thin, bottom: thin } : col === 4 ? { top: thin, bottom: thin, left: thin } : col === 6 ? { top: thin, bottom: thin, right: thin } : box;
+      });
+      if (a.empty) r.getCell(3).font = { ...font(11), color: { argb: "FF888888" } };
+      if (b.empty) r.getCell(7).font = { ...font(11), color: { argb: "FF888888" } };
+    });
+
+    ws.mergeCells("A18:H18");
+    ws.getCell("A18").value = `종합   ${className(m.a)} (      )승  :  (      )승 ${className(m.b)}`;
+    ws.mergeCells("A20:H20");
+    ws.getCell("A20").value = "최종 승리 반 : ____________________          확인 : ____________";
+    ["A18", "A20"].forEach((c) => { ws.getCell(c).font = font(12, true); ws.getCell(c).alignment = { horizontal: "center", vertical: "middle" }; });
+    ws.getRow(18).height = 28; ws.getRow(20).height = 28;
+  });
+
+  // 전체 명단 시트
+  const ls = wb.addWorksheet("출전 명단", { pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  ls.columns = [{ header: "반", width: 12 }, { header: "종목", width: 10 }, { header: "학번", width: 10 }, { header: "이름", width: 12 }, { header: "학번", width: 10 }, { header: "이름", width: 12 }];
+  ls.getRow(1).eachCell((c) => { c.font = { bold: true }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE9ECE9" } }; c.border = box; c.alignment = { horizontal: "center" }; });
+  state.rosters.forEach((r) => TEAM_KEYS.forEach((k) => {
+    const ps = r.teams[k] || [];
+    const row = ls.addRow([className(classKey(r)), teamLabel(k), ps[0]?.sid || "", ps[0]?.name || (ps.length ? "" : "기권"), ps[1]?.sid || "", ps[1]?.name || ""]);
+    row.eachCell({ includeEmpty: true }, (c) => { c.border = box; c.alignment = { horizontal: "center" }; });
+  }));
+
+  const buf = await wb.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: `배드민턴_대진표_${date}.xlsx` });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+});
+
+/* ── 우선급식증 ── */
+$("cReason").value = store.get("bt-reason", "반별 배드민턴 토너먼트 출전");
+$("cTeacher").value = store.get("bt-teacher", "김남이");
+["cReason", "cTeacher", "cDate"].forEach((id) => $(id).addEventListener("input", () => { store.set("bt-reason", $("cReason").value); store.set("bt-teacher", $("cTeacher").value); renderCerts(); }));
+
+function renderCertClasses() {
+  $("cClasses").innerHTML = state.rosters.length
+    ? state.rosters.map((r) => `<label><input type="checkbox" value="${classKey(r)}" checked> ${className(classKey(r))}</label>`).join("")
+    : '<span class="note">제출한 반이 없습니다.</span>';
+}
+$("cClasses").addEventListener("change", renderCerts);
+$("xAdd").addEventListener("click", () => {
+  const sid = $("xSid").value.trim(), name = $("xName").value.trim();
+  if (!name) return;
+  extras.push({ sid, name }); $("xSid").value = ""; $("xName").value = ""; renderCerts();
+});
+
+function certStudents() {
+  const on = new Set([...$("cClasses").querySelectorAll("input:checked")].map((i) => i.value));
+  const map = new Map();
+  state.rosters.filter((r) => on.has(classKey(r))).forEach((r) =>
+    TEAM_KEYS.forEach((k) => (r.teams[k] || []).forEach((p) => { const id = p.sid || p.name; if (!map.has(id)) map.set(id, p); })));
+  const list = [...map.values()].sort((a, b) => String(a.sid).localeCompare(String(b.sid), "ko", { numeric: true }));
+  return list.concat(extras);
+}
+function makeCert(s) {
+  return `<div class="cert">
+    <div class="cert-title">우선급식증</div>
+    <div class="cert-row"><span class="cert-label">기 간</span><span class="cert-sep">:</span><span class="cert-value">${esc($("cDate").value)}</span></div>
+    <div class="cert-row"><span class="cert-label">사 유</span><span class="cert-sep">:</span><span class="cert-value">${esc($("cReason").value)}</span></div>
+    <div class="cert-row"><span class="cert-label">학 번</span><span class="cert-sep">:</span><span class="cert-value">${esc(s.sid)}</span></div>
+    <div class="cert-row"><span class="cert-label">이 름</span><span class="cert-sep">:</span><span class="cert-value">${esc(s.name)}</span></div>
+    <div class="cert-body">위와 같은 사유로 해당 기간에 한하여 급식을 우선적으로 먹을 수 있도록 허락합니다.</div>
+    <div class="cert-footer">
+      <div class="teacher-line">담당교사 : ${esc($("cTeacher").value)} &nbsp; <span class="cert-seal">인</span></div>
+      <div class="cert-logo-row"><img class="cert-logo" src="logo.jpg" alt="창원신월고"></div>
+    </div>
+  </div>`;
+}
+function certsHTML() { const s = certStudents(); return s.length ? `<div class="certs-grid">${s.map(makeCert).join("")}</div>` : ""; }
+function renderCerts() {
+  const n = certStudents().length;
+  $("certCnt").textContent = `${n}장`;
+  $("certPreview").innerHTML = certsHTML() || '<p class="note" style="color:#555">출력할 학생이 없습니다. 반을 고르거나 학생을 추가하세요.</p>';
+}
+$("printCerts").addEventListener("click", () => { const h = certsHTML(); if (!h) return alertBox("출력할 학생이 없습니다."); printWith(h); });
+</script>
+</body>
+</html>
