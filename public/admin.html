@@ -54,22 +54,23 @@
   .bk-foot div { border: 1px solid #111; padding: 10px; }
 
   /* ── 우선급식증: 기존 생성기 양식 그대로 ── */
-  .certs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
-  .cert { border: 1.5px solid #333; padding: 1.5rem 1.75rem; font-family: 'Noto Serif KR', serif; background: white; color: #111; position: relative; page-break-inside: avoid; break-inside: avoid; }
-  .cert-title { text-align: center; font-size: 1.4rem; font-weight: 700; letter-spacing: 0.3em; margin-bottom: 1.4rem; padding-bottom: 0.75rem; border-bottom: 1px solid #333; }
-  .cert-row { display: flex; margin-bottom: 0.65rem; font-size: 1rem; line-height: 1.8; }
-  .cert-label { min-width: 2.2rem; color: #333; font-weight: 600; white-space: nowrap; }
-  .cert-sep { margin: 0 0.3rem; }
-  .cert-value { color: #111; }
-  .cert-body { margin-top: 1.25rem; font-size: 0.88rem; line-height: 2; text-align: justify; border-top: 1px solid #ccc; padding-top: 1.1rem; }
-  .cert-footer { margin-top: 1.2rem; text-align: right; font-size: 0.88rem; }
-  .cert-logo-row { text-align: center; margin-bottom: 0.4rem; }
-  .cert-logo { height: 40px; object-fit: contain; opacity: 0.85; }
-  .cert-footer .teacher-line { display: inline-flex; align-items: center; gap: 0.5rem; }
-  .cert-seal { display: inline-block; width: 42px; height: 42px; border: 1.5px solid #666; border-radius: 50%; margin-left: 4px; vertical-align: middle; font-size: 10px; line-height: 42px; text-align: center; color: #999; }
-  .cert-preview { background: #fff; padding: 16px; border: 1px solid var(--line); overflow-x: auto; }
-  .cert-preview .certs-grid { min-width: 620px; }
-  @media (max-width: 640px) { .certs-grid { grid-template-columns: 1fr; } .cert-preview .certs-grid { min-width: 0; } }
+  /* ── 우선급식증: 기존 생성기 양식을 A4 한 장 9칸(3×3)에 맞춤 ── */
+  .cert-page { width: 190mm; height: 277mm; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 4mm; background: #fff; box-sizing: border-box; }
+  .cert { border: 1.2px solid #333; padding: 4mm 4.5mm 3mm; font-family: 'Noto Serif KR', serif; background: white; color: #111; display: flex; flex-direction: column; overflow: hidden; min-width: 0; break-inside: avoid; }
+  .cert-title { text-align: center; font-size: 14pt; font-weight: 700; letter-spacing: 0.3em; margin-bottom: 2.5mm; padding-bottom: 2mm; border-bottom: 1px solid #333; }
+  .cert-row { display: flex; font-size: 10pt; line-height: 1.55; margin-bottom: 0.6mm; }
+  .cert-label { min-width: 2.6em; color: #333; font-weight: 600; white-space: nowrap; }
+  .cert-sep { margin: 0 0.25em; }
+  .cert-value { color: #111; min-width: 0; word-break: keep-all; }
+  .cert-body { margin-top: 2mm; font-size: 8pt; line-height: 1.7; text-align: left; border-top: 1px solid #ccc; padding-top: 2mm; word-break: keep-all; }
+  .cert-footer { margin-top: auto; text-align: right; font-size: 9pt; }
+  .cert-footer .teacher-line { display: inline-flex; align-items: center; gap: 1.5mm; }
+  .cert-seal { display: inline-block; width: 9mm; height: 9mm; border: 1.2px solid #666; border-radius: 50%; font-size: 7.5pt; line-height: 9mm; text-align: center; color: #999; }
+  .cert-logo-row { text-align: center; margin-top: 1.5mm; }
+  .cert-logo { height: 7mm; object-fit: contain; opacity: 0.85; }
+  .cert-preview { background: var(--bg); padding: 16px; border: 1px solid var(--line); overflow-x: auto; display: grid; gap: 16px; justify-content: start; }
+  .cert-preview .cert-page { padding: 0; outline: 1px dashed #bbb; outline-offset: 6px; margin: 6px; }
+  .cert-pageno { font-size: .8rem; color: var(--muted); margin: 0 6px -8px; }
 
   .pick { display: flex; flex-wrap: wrap; gap: 8px; }
   .passitem { display: inline-flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 4px 4px 4px 12px; background: var(--bg); }
@@ -85,8 +86,8 @@
     .bracket-page { border: 0; padding: 0; min-width: 0; page-break-after: always; break-after: page; }
     .bracket-page:last-child { page-break-after: auto; break-after: auto; }
     .bracket-page + .bracket-page { margin-top: 0; }
-    .certs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5cm; padding: 1cm; }
-    .cert { border: 1.5px solid #333 !important; }
+    .cert-page { page-break-after: always; break-after: page; }
+    .cert-page:last-child { page-break-after: auto; break-after: auto; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
@@ -532,11 +533,17 @@ function makeCert(s) {
     </div>
   </div>`;
 }
-function certsHTML() { const s = certStudents(); return s.length ? `<div class="certs-grid">${s.map(makeCert).join("")}</div>` : ""; }
+function certPages(withLabel) {
+  const s = certStudents(), pages = [];
+  for (let i = 0; i < s.length; i += 9) pages.push(s.slice(i, i + 9));
+  const total = pages.length;
+  return pages.map((pg, i) => (withLabel ? `<div class="cert-pageno">${i + 1} / ${total}쪽</div>` : "") + `<div class="cert-page">${pg.map(makeCert).join("")}</div>`).join("");
+}
+function certsHTML() { return certPages(false); }
 function renderCerts() {
   const n = certStudents().length;
-  $("certCnt").textContent = `${n}장`;
-  $("certPreview").innerHTML = certsHTML() || '<p class="note" style="color:#555">출력할 학생이 없습니다. 반을 고르거나 학생을 추가하세요.</p>';
+  $("certCnt").textContent = `${n}장 · A4 ${Math.ceil(n / 9)}쪽`;
+  $("certPreview").innerHTML = certPages(true) || '<p class="note" style="color:#555">출력할 학생이 없습니다. 반을 고르거나 학생을 추가하세요.</p>';
 }
 $("printCerts").addEventListener("click", () => { const h = certsHTML(); if (!h) return alertBox("출력할 학생이 없습니다."); printWith(h); });
 </script>
